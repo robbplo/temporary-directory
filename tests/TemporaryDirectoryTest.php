@@ -24,9 +24,7 @@ it('can create a temporary directory with a name', function () {
         ->create();
 
     expect($temporaryDirectory->path())
-        ->toBeDirectory();
-
-    expect($this->temporaryDirectoryFullPath)
+        ->and($this->temporaryDirectoryFullPath)
         ->toBeDirectory();
 });
 
@@ -44,9 +42,7 @@ it('can create a temporary directory in a custom location', function () {
         ->create();
 
     expect($temporaryDirectory->path())
-        ->toBeDirectory();
-
-    expect($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
+        ->and($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
         ->toBeDirectory();
 });
 
@@ -56,9 +52,7 @@ it('can create a temporary directory in a custom location through the constructo
         ->create();
 
     expect($temporaryDirectory->path())
-        ->toBeDirectory();
-
-    expect($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
+        ->and($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
         ->toBeDirectory();
 });
 
@@ -142,9 +136,7 @@ it('can create a subdirectory in the temporary directory', function () {
     $subdirectoryPath = $temporaryDirectory->path($subdirectory);
 
     expect($subdirectoryPath)
-        ->toBeDirectory();
-
-    expect("{$this->temporaryDirectoryFullPath}/{$subdirectory}")
+        ->and("{$this->temporaryDirectoryFullPath}/{$subdirectory}")
         ->toBeDirectory();
 });
 
@@ -157,9 +149,7 @@ it('can create a multiple subdirectories in the temporary directory', function (
     $subdirectoryPath = $temporaryDirectory->path($subdirectories);
 
     expect($subdirectoryPath)
-        ->toBeDirectory();
-
-    expect("{$this->temporaryDirectoryFullPath}/{$subdirectories}")
+        ->and("{$this->temporaryDirectoryFullPath}/{$subdirectories}")
         ->toBeDirectory();
 });
 
@@ -174,9 +164,7 @@ it('can create a path to a file in the temporary directory', function () {
     touch($subdirectoryFilePath);
 
     expect($subdirectoryFilePath)
-        ->toBeFile();
-
-    expect("{$this->temporaryDirectoryFullPath}/{$subdirectoriesWithFile}")
+        ->and("{$this->temporaryDirectoryFullPath}/{$subdirectoriesWithFile}")
         ->toBeFile();
 });
 
