@@ -1,299 +1,257 @@
 <?php
 
-namespace Spatie\TemporaryDirectory\Test;
-
-use FilesystemIterator;
-use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
 
-class TemporaryDirectoryTest extends TestCase
-{
-    /** @var string */
-    protected $temporaryDirectory = 'temporary_directory';
-
-    /** @var string */
-    protected $testingDirectory = __DIR__.DIRECTORY_SEPARATOR.'temp';
-
-    /** @var string */
-    protected $temporaryDirectoryFullPath;
-
-    public function setUp(): void
-    {
-        parent::setUp();
-
-        $this->temporaryDirectoryFullPath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$this->temporaryDirectory;
-
-        $this->deleteDirectory($this->testingDirectory);
-        $this->deleteDirectory($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_can_create_a_temporary_directory()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())->create();
-
-        $this->assertDirectoryExists($temporaryDirectory->path());
-    }
-
-    /** @test */
-    public function it_can_create_a_temporary_directory_with_a_name()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $this->assertDirectoryExists($temporaryDirectory->path());
-        $this->assertDirectoryExists($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_does_not_generate_spaces_in_directory_path()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())->create();
-
-        $this->assertEquals(0, substr_count($temporaryDirectory->path(), ' '));
-    }
-
-    /** @test */
-    public function it_can_create_a_temporary_directory_in_a_custom_location()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->location($this->testingDirectory)
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $this->assertDirectoryExists($temporaryDirectory->path());
-        $this->assertDirectoryExists($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory);
-    }
-
-    /** @test */
-    public function it_can_create_a_temporary_directory_in_a_custom_location_through_the_constructor()
-    {
-        $temporaryDirectory = (new TemporaryDirectory($this->testingDirectory))
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $this->assertDirectoryExists($temporaryDirectory->path());
-        $this->assertDirectoryExists($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory);
-    }
-
-    /** @test */
-    public function it_strips_trailing_slashes_from_a_path()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $testingPath = $temporaryDirectory->path('testing'.DIRECTORY_SEPARATOR);
-        $this->assertStringEndsNotWith(DIRECTORY_SEPARATOR, $testingPath);
-    }
-
-    /** @test */
-    public function it_strips_trailing_slashes_from_a_location()
-    {
-        $temporaryDirectory = (new TemporaryDirectory($this->testingDirectory.DIRECTORY_SEPARATOR))
-            ->create();
-
-        $this->assertStringEndsNotWith(DIRECTORY_SEPARATOR, $temporaryDirectory->path());
-
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->location($this->testingDirectory.DIRECTORY_SEPARATOR)
-            ->create();
-
-        $this->assertStringEndsNotWith(DIRECTORY_SEPARATOR, $temporaryDirectory->path());
-    }
-
-    /** @test */
-    public function by_default_it_will_not_overwrite_an_existing_directory()
-    {
-        mkdir($this->temporaryDirectoryFullPath);
-
-        $this->expectException(InvalidArgumentException::class);
-
-        (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-    }
-
-    /** @test */
-    public function it_will_overwrite_an_existing_directory_when_using_force_create()
-    {
-        mkdir($this->temporaryDirectoryFullPath);
-
-        $testFile = $this->temporaryDirectoryFullPath.DIRECTORY_SEPARATOR.'test.txt';
-
-        touch($testFile);
-
-        $this->assertFileExists($testFile);
-
-        (new TemporaryDirectory())
-            ->force()
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $this->assertDirectoryExists($this->temporaryDirectoryFullPath);
-        $this->assertFileNotExists($testFile);
-    }
-
-    /** @test */
-    public function it_provides_chainable_create_methods()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $this->assertInstanceOf(TemporaryDirectory::class, $temporaryDirectory);
-
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->force()
-            ->create();
-
-        $this->assertInstanceOf(TemporaryDirectory::class, $temporaryDirectory);
-    }
-
-    /** @test */
-    public function it_can_create_a_subdirectory_in_the_temporary_directory()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $subdirectory = 'abc';
-        $subdirectoryPath = $temporaryDirectory->path($subdirectory);
-
-        $this->assertDirectoryExists($subdirectoryPath);
-        $this->assertDirectoryExists("{$this->temporaryDirectoryFullPath}/{$subdirectory}");
-    }
-
-    /** @test */
-    public function it_can_create_a_multiple_subdirectories_in_the_temporary_directory()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $subdirectories = 'abc/123/xyz';
-        $subdirectoryPath = $temporaryDirectory->path($subdirectories);
-
-        $this->assertDirectoryExists($subdirectoryPath);
-        $this->assertDirectoryExists("{$this->temporaryDirectoryFullPath}/{$subdirectories}");
-    }
-
-    /** @test */
-    public function it_can_create_a_path_to_a_file_in_the_temporary_directory()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
-        $subdirectoryFilePath = $temporaryDirectory->path($subdirectoriesWithFile);
-        touch($subdirectoryFilePath);
-
-        $this->assertFileExists($subdirectoryFilePath);
-        $this->assertFileExists("{$this->temporaryDirectoryFullPath}/{$subdirectoriesWithFile}");
-    }
-
-    /** @test */
-    public function it_can_delete_a_temporary_directory_containing_files()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
-        $subdirectoryPath = $temporaryDirectory->path($subdirectoriesWithFile);
-        touch($subdirectoryPath);
-        $temporaryDirectory->delete();
-
-        $this->assertDirectoryNotExists($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_can_delete_a_temporary_directory_containing_no_content()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $temporaryDirectory->delete();
-
-        $this->assertDirectoryNotExists($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_can_delete_a_temporary_directory_containing_broken_symlink()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        symlink(
-            $temporaryDirectory->path().DIRECTORY_SEPARATOR.'target',
-            $temporaryDirectory->path().DIRECTORY_SEPARATOR.'link'
-        );
-
-        $temporaryDirectory->delete();
-
-        $this->assertDirectoryNotExists($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_can_empty_a_temporary_directory()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name($this->temporaryDirectory)
-            ->create();
-
-        $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
-        $subdirectoryPath = $temporaryDirectory->path($subdirectoriesWithFile);
-        touch($subdirectoryPath);
-        $temporaryDirectory->empty();
-
-        $this->assertFileNotExists($this->temporaryDirectoryFullPath.DIRECTORY_SEPARATOR.$subdirectoriesWithFile);
-        $this->assertDirectoryExists($this->temporaryDirectoryFullPath);
-    }
-
-    /** @test */
-    public function it_throws_exception_on_invalid_name()
-    {
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('The directory name `/` contains invalid characters.');
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->name('/');
-    }
-
-    /** @test */
-    public function it_should_return_true_on_deleted_file_is_not_existed()
-    {
-        $temporaryDirectory = (new TemporaryDirectory())
-            ->delete();
-
-        $this->assertTrue($temporaryDirectory);
-    }
-
-    protected function deleteDirectory(string $path): bool
-    {
-        if (is_link($path)) {
-            return unlink($path);
-        }
-
-        if (! file_exists($path)) {
-            return true;
-        }
-
-        if (! is_dir($path)) {
-            return unlink($path);
-        }
-
-        foreach (new FilesystemIterator($path) as $item) {
-            if (! $this->deleteDirectory($item)) {
-                return false;
-            }
-        }
-
-        return rmdir($path);
-    }
-}
+beforeEach(function () {
+    $this->temporaryDirectory = 'temporary_directory';
+    $this->testingDirectory = __DIR__.DIRECTORY_SEPARATOR.'temp';
+    $this->temporaryDirectoryFullPath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$this->temporaryDirectory;
+
+    deleteDirectory($this->testingDirectory);
+    deleteDirectory($this->temporaryDirectoryFullPath);
+});
+
+it('can create a temporary directory', function () {
+    $temporaryDirectory = (new TemporaryDirectory())->create();
+
+    expect($temporaryDirectory->path())
+        ->toBeDirectory();
+});
+
+it('can create a temporary directory with a name', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    expect($temporaryDirectory->path())
+        ->toBeDirectory();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->toBeDirectory();
+});
+
+it('does not generate spaces in directory path', function () {
+    $temporaryDirectory = (new TemporaryDirectory())->create();
+
+    expect($temporaryDirectory->path())
+        ->not->toContain(' ');
+});
+
+it('can create a temporary directory in a custom location', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->location($this->testingDirectory)
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    expect($temporaryDirectory->path())
+        ->toBeDirectory();
+
+    expect($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
+        ->toBeDirectory();
+});
+
+it('can create a temporary directory in a custom location through the constructor', function () {
+    $temporaryDirectory = (new TemporaryDirectory($this->testingDirectory))
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    expect($temporaryDirectory->path())
+        ->toBeDirectory();
+
+    expect($this->testingDirectory.DIRECTORY_SEPARATOR.$this->temporaryDirectory)
+        ->toBeDirectory();
+});
+
+it('strips trailing slashes from a path', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $testingPath = $temporaryDirectory->path('testing'.DIRECTORY_SEPARATOR);
+
+    expect($testingPath)
+        ->not->toEndWith(DIRECTORY_SEPARATOR);
+});
+
+it('strips trailing slashes from a location', function () {
+    $temporaryDirectory = (new TemporaryDirectory($this->testingDirectory.DIRECTORY_SEPARATOR))
+        ->create();
+
+    expect($temporaryDirectory->path())
+        ->not->toEndWith(DIRECTORY_SEPARATOR);
+
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->location($this->testingDirectory.DIRECTORY_SEPARATOR)
+        ->create();
+
+    expect($temporaryDirectory->path())
+        ->not->toEndWith(DIRECTORY_SEPARATOR);
+});
+
+it('will not overwrite an existing directory by default', function () {
+    mkdir($this->temporaryDirectoryFullPath);
+
+    (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+})->throws(InvalidArgumentException::class);
+
+it('will overwrite an existing directory when using force create', function () {
+    mkdir($this->temporaryDirectoryFullPath);
+    $testFile = $this->temporaryDirectoryFullPath.DIRECTORY_SEPARATOR.'test.txt';
+    touch($testFile);
+
+    expect($testFile)
+        ->toBeFile();
+
+    (new TemporaryDirectory())
+        ->force()
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->toBeDirectory();
+
+    expect($testFile)
+        ->not->toBeFile();
+});
+
+it('provides chainable create methods', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    expect($temporaryDirectory)
+        ->toBeInstanceOf(TemporaryDirectory::class);
+
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->force()
+        ->create();
+
+    expect($temporaryDirectory)
+        ->toBeInstanceOf(TemporaryDirectory::class);
+});
+
+it('can create a subdirectory in the temporary directory', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $subdirectory = 'abc';
+    $subdirectoryPath = $temporaryDirectory->path($subdirectory);
+
+    expect($subdirectoryPath)
+        ->toBeDirectory();
+
+    expect("{$this->temporaryDirectoryFullPath}/{$subdirectory}")
+        ->toBeDirectory();
+});
+
+it('can create a multiple subdirectories in the temporary directory', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $subdirectories = 'abc/123/xyz';
+    $subdirectoryPath = $temporaryDirectory->path($subdirectories);
+
+    expect($subdirectoryPath)
+        ->toBeDirectory();
+
+    expect("{$this->temporaryDirectoryFullPath}/{$subdirectories}")
+        ->toBeDirectory();
+});
+
+it('can create a path to a file in the temporary directory', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
+    $subdirectoryFilePath = $temporaryDirectory->path($subdirectoriesWithFile);
+
+    touch($subdirectoryFilePath);
+
+    expect($subdirectoryFilePath)
+        ->toBeFile();
+
+    expect("{$this->temporaryDirectoryFullPath}/{$subdirectoriesWithFile}")
+        ->toBeFile();
+});
+
+it('can delete a temporary directory containing files', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
+    $subdirectoryPath = $temporaryDirectory->path($subdirectoriesWithFile);
+
+    touch($subdirectoryPath);
+
+    $temporaryDirectory->delete();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->not->toBeDirectory();
+});
+
+it('can delete a temporary directory containing no content', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $temporaryDirectory->delete();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->not->toBeDirectory();
+});
+
+it('can delete a temporary directory containing broken symlink', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    symlink(
+        $temporaryDirectory->path().DIRECTORY_SEPARATOR.'target',
+        $temporaryDirectory->path().DIRECTORY_SEPARATOR.'link'
+    );
+
+    $temporaryDirectory->delete();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->not->toBeDirectory();
+});
+
+it('can empty a temporary directory', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name($this->temporaryDirectory)
+        ->create();
+
+    $subdirectoriesWithFile = 'abc/123/xyz/test.txt';
+    $subdirectoryPath = $temporaryDirectory->path($subdirectoriesWithFile);
+
+    touch($subdirectoryPath);
+
+    $temporaryDirectory->empty();
+
+    expect($this->temporaryDirectoryFullPath.DIRECTORY_SEPARATOR.$subdirectoriesWithFile)
+        ->not->toBeFile();
+
+    expect($this->temporaryDirectoryFullPath)
+        ->toBeDirectory();
+});
+
+it('throws exception on invalid name', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->name('/');
+
+})->throws(\Exception::class);
+
+it('should return true on deleted file is not existed', function () {
+    $temporaryDirectory = (new TemporaryDirectory())
+        ->delete();
+
+    expect($temporaryDirectory)
+        ->toBeTrue();
+});
